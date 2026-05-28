@@ -33,8 +33,8 @@ if audio and st.button("Transcribe & Create Note", type="primary"):
     st.text_area("Transcript", transcript, height=150)
     
     with st.spinner("Generating note..."):
-        note = grok_client.chat.completions.create(
-            model="grok-beta",
+        note = openai_client.chat.completions.create(
+            model="gpt-4o",
             messages=[{"role": "user", "content": f"Create a clean ER note from this transcript:\n\n{transcript}"}],
             temperature=0.3
         ).choices[0].message.content
