@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  # SQL Server Database
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: adelyn-mssql
+    environment:
+      SA_PASSWORD: YourSecurePassword123!
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - adelyn-network
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourSecurePassword123!", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: adelyn-backend
+    environment:
+      DATABASE_URL: mssql+pyodbc://sa:YourSecurePassword123!@mssql:1433/adelyn?driver=ODBC+Driver+17+for+SQL+Server
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-test-key}
+      AZURE_TRANSLATOR_KEY: ${AZURE_TRANSLATOR_KEY:-test-key}
+      AZURE_TRANSLATOR_ENDPOINT: ${AZURE_TRANSLATOR_ENDPOINT:-https://api.cognitive.microsofttranslator.com/}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: HS256
+      TOKEN_EXPIRE_MINUTES: 60
+      ENVIRONMENT: development
+      DEBUG: "True"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - adelyn-network
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: adelyn-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - adelyn-network
+    environment:
+      VITE_API_URL: http://localhost:8000
+
+volumes:
+  mssql_data:
+
+networks:
+  adelyn-network:
+    driver: bridge
