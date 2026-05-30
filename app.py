@@ -65,8 +65,8 @@ Use the 2023 E/M Guidelines for MDM:
 
 Output ONLY the structured note with the exact section headers above. No extra text."""
 
-            note = grok_client.chat.completions.create(
-                model="grok-beta",
+            note = openai_client.chat.completions.create(
+                model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=2000
